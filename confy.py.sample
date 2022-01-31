@@ -1,0 +1,15 @@
+from logging import DEBUG, INFO
+
+API_TOKEN = 'your-tg-token'
+DOPE_TOKEN = 'another-tg-token'
+
+WEBHOOK_HOST = "127.0.0.1"
+WEBHOOK_PORT = 7676
+WEBHOOK_URL_PATH = '/'
+
+VERBOSE = True
+LOGTOFILE = True
+LOGLEVEL = DEBUG
+
+DBUSER = 'dbuser'
+DBPASS = 'dbpass'
