@@ -37,10 +37,10 @@ def get_kb(chline):
 
 
 def get_vote_kb(word):
-    keyboard_markup = types.InlineKeyboardMarkup(row_width=2)
+    keyboard_markup = types.InlineKeyboardMarkup(row_width=1)
     button = types.InlineKeyboardButton
-    button1 = button(text="Сложное 💚", callback_data=f"vote_{word}_pro")
-    button2 = button(text="Ерунда 💩", callback_data=f"vote_{word}_contra")
+    button1 = button(text="Интересное! 💚", callback_data=f"vote_{word}_pro")
+    button2 = button(text="Не понравилось 💩", callback_data=f"vote_{word}_contra")
     keyboard_markup.add(button1, button2)
     return keyboard_markup
 

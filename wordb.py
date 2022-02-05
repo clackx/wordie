@@ -178,3 +178,10 @@ async def add_comm_word(word):
 
 async def upd_comm_word(word, usages):
     await try_commit("UPDATE comm5 SET usages=%s where word=%s", (usages, word))
+
+
+async def get_games_from(tstamp):
+    data = await try_fetch("select users.username, count(games.crux) FROM games "
+                           "LEFT JOIN users ON users.userid=games.userid WHERE tstamp>%s "
+                           "GROUP BY username ORDER BY count(games.crux) DESC;", (tstamp,), ALL)
+    return data

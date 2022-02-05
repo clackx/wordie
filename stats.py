@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta
+
 from utils import try_send_message
-from wordb import get_stats, get_players, get_word_usages, get_all_word_info, get_comms
+from wordb import get_stats, get_players, get_word_usages, get_all_word_info, get_comms, get_games_from
 
 
 async def show_stats(userid):
@@ -46,6 +48,46 @@ async def show_comms(userid):
         if idx < size + 2:
             text += f'{idx + 1}. {val[0]} x {val[1]}\n'
     text += '\nРейтинг слов /rates'
+    await try_send_message(userid, text)
+
+
+async def show_games(userid):
+    today = datetime.now().strftime("%Y-%m-%d")
+    dt = datetime.strptime(today, "%Y-%m-%d")
+    week = (dt - timedelta(days=dt.weekday())).strftime("%Y-%m-%d")
+    month = (dt - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    text = 'Игр за сегодня:\n'
+    data = await get_games_from(today)
+    size = len(data) if len(data) < 10 else 10
+    total = 0
+    for index, (username, count) in enumerate(data):
+        if index < size:
+            text += f"{index + 1}. {username} : : {count}\n"
+        total += count
+    text += f"Всего: {total}\n\n"
+
+    text += 'C начала недели:\n'
+    data = await get_games_from(week)
+    size = len(data) if len(data) < 10 else 10
+    total = 0
+    for index, (username, count) in enumerate(data):
+        if index < size:
+            text += f"{index + 1}. {username} : : {count}\n"
+        total += count
+    text += f"Всего: {total}\n\n"
+
+    text += 'За 30 дней:\n'
+    data = await get_games_from(month)
+    size = len(data) if len(data) < 10 else 10
+    total = 0
+    for index, (username, count) in enumerate(data):
+        if index < size:
+            text += f"{index + 1}. {username} : : {count}\n"
+        total += count
+    text += f"Всего: {total}\n\n"
+
+    text += 'Рейтинг слов /rates    '
     await try_send_message(userid, text)
 
 

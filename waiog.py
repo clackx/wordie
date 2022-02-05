@@ -5,7 +5,7 @@ from aiogram import executor
 
 from confy import WEBHOOK_URL_PATH, WEBHOOK_HOST, WEBHOOK_PORT
 from event import start, show_help, incoming, go_vote, go_inputs
-from stats import show_stats, show_top, show_words, show_words_rate, show_comms
+from stats import show_stats, show_top, show_words, show_words_rate, show_comms, show_games
 from utils import dp, try_answer_callback_query, dope_send_message
 from utils import logger
 
@@ -65,6 +65,16 @@ async def docall(message):
     logger.debug(f"{pref} select WORDS ...")
     await show_words(userid)
     logger.info(f"{pref} select WORDS :: {time() - start_time}")
+
+
+@dp.message_handler(commands=["games"])
+async def docall(message):
+    start_time = time()
+    userid = message.from_user.id
+    pref = get_prefix(message.from_user)
+    logger.debug(f"{pref} select GAMES ...")
+    await show_games(userid)
+    logger.info(f"{pref} select GAMES :: {time() - start_time}")
 
 
 @dp.message_handler(commands=["comms"])
