@@ -53,8 +53,18 @@ async def docall(message):
     userid = message.from_user.id
     pref = get_prefix(message.from_user)
     logger.debug(f"{pref} select TOP10 ...")
-    await show_top(userid)
+    await show_top(userid, False)
     logger.info(f"{pref} select TOP10 :: {time() - start_time}")
+
+
+@dp.message_handler(commands=["top7"])
+async def docall(message):
+    start_time = time()
+    userid = message.from_user.id
+    pref = get_prefix(message.from_user)
+    logger.debug(f"{pref} select TOP7 ...")
+    await show_top(userid, True)
+    logger.info(f"{pref} select TOP7 :: {time() - start_time}")
 
 
 @dp.message_handler(commands=["words"])

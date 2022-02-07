@@ -114,8 +114,8 @@ async def set_user(userid, chline, messid, state):
 
 async def set_blank_user(userid):
     await try_commit("UPDATE users SET cruxword=%s, cruxid=%s, charline=%s, "
-                     "prevmess=%s, state=%s, inputs=%s WHERE userid=%s",
-                     ('', 0, charline_default, 0, 1, '', userid))
+                     "prevmess=%s, state=%s, inputs=%s, lastupd=%s WHERE userid=%s",
+                     ('', 0, charline_default, 0, 1, '', datetime.now(), userid))
 
 
 async def set_inputs(userid, inputs):
@@ -161,9 +161,9 @@ async def get_games(userid):
     return data
 
 
-async def get_players():
-    data = await try_fetch("SELECT username, games, wins, streaks, maxstreak, points "
-                           "FROM users WHERE games>4", (), ALL)
+async def get_players(day_from):
+    data = await try_fetch("SELECT userid, username, games, wins, streaks, maxstreak, points "
+                           "FROM users WHERE games>4 AND lastupd>%s", (day_from, ), ALL)
     return data
 
 
