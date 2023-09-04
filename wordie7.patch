@@ -1,0 +1,326 @@
+diff --git a/event.py b/event.py
+index 71425f1..ebf3d66 100644
+--- a/event.py
++++ b/event.py
+@@ -5,29 +5,28 @@ from utils import try_send_message, try_edit_message_text, try_delete_message, \
+ from wordb import set_user, check_user, create_user, set_blank_user, \
+     get_crux, check_word, get_word, set_word, get_word_info, set_word_info, up_word_usages, \
+     get_games, add_game, get_moves, set_moves, get_stats, set_stats, set_inputs, get_inputs, \
+-    get_comm_word, add_comm_word, upd_comm_word
++    get_comm_word, add_comm_word, upd_comm_word, get_currlen
+ 
+ 
+ async def incoming(userid, userword):
++    currlen = await get_currlen(userid)
+     userword = userword.lower().replace('ё', 'е')
++
+     if len(userword) < 5:
+         num = 0
+         try:
+             num = int(userword)
+         except Exception as err:
+             logger.debug(err)
+-        if 0 < num < 1262:
++        if 0 < num < 5001:
+             userword = await choose_word(userid, num)
+             if userword:
+                 shared, entered, votepro, votecontra = await get_word_info(userword)
+                 entered += 1
+                 await set_word_info(userword, shared, entered, votepro, votecontra)
+             return
+-        elif num > 1234:
+-            await try_send_message(userid, "Доступно 1234 слова. 7 последних специально подобраны сложными.")
+-            return
+-        else:
+-            await try_send_message(userid, "Маловато! Введите слово из 5 букв.")
++        elif num > 5000:
++            await try_send_message(userid, "Доступно 5000 слов для выбора.")
+             return
+ 
+     if userword == 'сдаюсь':
+@@ -39,8 +38,12 @@ async def incoming(userid, userword):
+             await try_send_message(userid, "Игра не начата. Для начала нажмите /start")
+         return
+ 
+-    if len(userword) > 5:
+-        await try_send_message(userid, "Так не пойдёт! Введите слово из 5 букв.")
++    if len(userword) < currlen:
++        await try_send_message(userid, f"Маловато! Введите слово из {currlen} букв.")
++        return
++
++    if len(userword) > currlen:
++        await try_send_message(userid, f"Это слишком! Введите слово из {currlen} букв.")
+         return
+ 
+     dictword = await check_word(userword)
+@@ -70,14 +73,14 @@ async def incoming(userid, userword):
+         return
+ 
+     if userword == cruxword:
+-        moves = await add_moves(userid, cruxword, userword, '🟩' * 5)
++        moves = await add_moves(userid, cruxword, userword, '🟩' * currlen)
+         await go_win(userid, state, cruxword, cruxid, prevmess, moves)
+         return
+ 
+     b, g, y = ('⬜', '🟩', '🟨️')
+     answer = ''
+     state += 1
+-    for i in range(0, 5):
++    for i in range(0, currlen):
+         if userword[i] == cruxword[i]:
+             answer += g
+             chline = chline.replace(userword[i], userword[i].capitalize())
+@@ -152,27 +155,15 @@ async def choose_word(userid, cruxid=0):
+         return
+ 
+     if not cruxid:
+-        allowedcruxes = [i for i in range(1, 1234) if i not in knowncruxes]
+-        if len(allowedcruxes) == 1133:
+-            await try_send_message(userid, "Ого, вы сыграли 100 слов! Это целых 8% от 1234 :)")
+-        if len(allowedcruxes) == 926:
+-            await try_send_message(userid, "Вы сыграли четвертую часть всех слов!")
+-        if len(allowedcruxes) == 823:
+-            await try_send_message(userid, "Вы сыграли треть всех слов!!")
+-        if len(allowedcruxes) == 617:
+-            await try_send_message(userid, "Вы сыграли половину всех слов!!!")
+-        if len(allowedcruxes) == 100:
+-            await try_send_message(userid, "Осталось меньше 100 слов o_0")
+-        if len(allowedcruxes) == 10:
+-            await try_send_message(userid, "Осталось меньше 10 слов...")
++        allowedcruxes = [i for i in range(1, 5000) if i not in knowncruxes]
+         if len(allowedcruxes) == 0:
+             await try_send_message(userid, "Вы сыграли все слова! Напишите разработчику @timeclackx")
+             return
+         cruxid = choices(allowedcruxes)[0]
+ 
+-    await try_send_message(userid, f"Я загадал слово №{cruxid}\nХод 1:  Введите слово из пяти букв")
+-    await set_blank_user(userid)
+     word = await get_word(cruxid)
++    await try_send_message(userid, f"Я загадал слово №{cruxid}\nХод 1:  Введите слово из {len(word)} букв")
++    await set_blank_user(userid)
+     await set_word(userid, word, cruxid)
+     await add_game(userid, cruxid, word)
+     return word
+@@ -188,15 +179,19 @@ async def add_moves(userid, cruxword, word, move):
+ 
+ 
+ async def go_inputs(userid, chosen):
++    currlen = await get_currlen(userid)
+     inputs = await get_inputs(userid)
+     if not inputs:
+         inputs = ''
+     _, _, charline, prevmess, state = await get_crux(userid)
+-    inputs += chosen
++    if chosen == 'ъ':
++        inputs = inputs[:len(inputs) - 1] if len(inputs) > 0 else ''
++    else:
++        inputs += chosen
+     letters = inputs.upper() if len(inputs) < 5 else ''
+     await try_edit_message_text(f'Ход {state}: {letters}', userid, prevmess, markup=get_kb(charline))
+ 
+-    if len(inputs) > 4:
++    if len(inputs) > currlen - 1:
+         await set_inputs(userid, '')
+         await try_send_message(userid, f'Ход {state}: {inputs.capitalize()}')
+         await incoming(userid, inputs)
+@@ -207,7 +202,7 @@ async def go_inputs(userid, chosen):
+ async def go_loose(userid, cruxword, cruxid, prevmess, moves):
+     await try_send_message(userid, f'Верное слово: {cruxword}')
+     await try_delete_message(userid, prevmess)
+-    text = f'@WordieRobot №{cruxid} X/6 \n\n' + '\n'.join(moves.split())
++    text = f'@wordiegamebot №{cruxid} X/6 \n\n' + '\n'.join(moves.split())
+     await try_send_message(userid, text, markup=get_vote_kb(cruxword))
+     games, wins, streaks, maxstreak, points, maxpoints = await get_stats(userid)
+     games += 1
+@@ -216,12 +211,12 @@ async def go_loose(userid, cruxword, cruxid, prevmess, moves):
+                                    '\nСтатистика /stats\n\nНовая игра /start')
+     await set_blank_user(userid)
+     await set_stats(userid, games, wins, 0, maxstreak, points, maxpoints)
+-    await try_send_message(userid, f"Поделитесь словом с другом: t.me/WordieRobot?start={cruxid}")
++    await try_send_message(userid, f"Поделитесь словом с другом: t.me/wordiegamebot?start={cruxid}")
+ 
+ 
+ async def go_win(userid, state, cruxword, cruxid, prevmess, moves):
+     await try_delete_message(userid, prevmess)
+-    text = f'@WordieRobot №{cruxid} {state}/6 \n\n' + '\n'.join(moves.split())
++    text = f'@wordiegamebot №{cruxid} {state}/6 \n\n' + '\n'.join(moves.split())
+     await try_send_message(userid, text, markup=get_vote_kb(cruxword))
+     games, wins, streaks, maxstreak, points, maxpoints = await get_stats(userid)
+     bonus = streaks if streaks < 10 else 10
+@@ -239,7 +234,11 @@ async def go_win(userid, state, cruxword, cruxid, prevmess, moves):
+                                    '\nСтатистика /stats\n\nНовая игра /start')
+     await set_blank_user(userid)
+     await set_stats(userid, games, wins, streaks, maxstreak, points, maxpoints)
+-    await try_send_message(userid, f"Поделитесь словом с другом: t.me/WordieRobot?start={cruxid}")
++    await try_send_message(userid, f"Поделитесь словом с другом: t.me/wordiegamebot?start={cruxid}")
++    if choices('1234567')[0] == '7':
++        emoji = choices('🤠🤪🥳🙃🧐🤠🤠🤠')[0]
++        await try_send_message(userid,
++                               f"{emoji} Можете поотгадывать слова английского языка у моего бота-братишки t.me/Wordiengbot")
+ 
+ 
+ async def go_vote(userid, word, vote, text, message_id):
+diff --git a/stats.py b/stats.py
+index 41c0e6f..97b6ade 100644
+--- a/stats.py
++++ b/stats.py
+@@ -132,7 +132,7 @@ async def show_top(userid, is_weektop):
+     dt = datetime.strptime(today, "%Y-%m-%d")
+     week = (dt - timedelta(days=dt.weekday())).strftime("%Y-%m-%d")
+ 
+-    data = await get_players(week) if is_weektop else await(get_players('2022-01-01'))
++    data = await get_players() #if is_weektop else await(get_players('2022-01-01'))
+     avrg_dict = {}
+     points_dict = {}
+     maxstreak_dict = {}
+diff --git a/wordb.py b/wordb.py
+index 745b694..cae5ef1 100644
+--- a/wordb.py
++++ b/wordb.py
+@@ -1,5 +1,6 @@
+ import asyncio
+ from datetime import datetime
++from time import time
+ 
+ import aiomysql
+ 
+@@ -13,22 +14,25 @@ async def create_my_pool():
+     loop = asyncio.get_event_loop()
+     pool = await aiomysql.create_pool(
+         host="localhost", user=DBUSER, password=DBPASS,
+-        db="wordie", loop=loop, autocommit=True, pool_recycle=120)
++        db="wordie7", loop=loop, autocommit=True, pool_recycle=120)
+     return pool
+ 
+ 
+ async def try_commit(query, data):
++    start_time = time()
+     async with aiomysql.connect(host="localhost", user=DBUSER, password=DBPASS,
+-                                db="wordie") as connection:
++                                db="wordie7") as connection:
+         try:
+             async with connection.cursor() as cursor:
+                 await cursor.execute(query, data)
+             await connection.commit()
+         except aiomysql.Error as err:
+             logger.error(f'ERROR COMMIT {err}, {query}, {data}')
++    logger.debug(f"+ + + + + {time() - start_time} committing query {query}")
+ 
+ 
+ async def try_fetch(query, data, is_single):
++    start_time = time()
+     pl = await create_my_pool()
+     async with pl.acquire() as connection:
+         try:
+@@ -39,6 +43,7 @@ async def try_fetch(query, data, is_single):
+                 else:
+                     await cursor.execute(query, data)
+                     data = await cursor.fetchall()
++                logger.debug(f". . . . . {time() - start_time} fetching query {query}")
+                 return data
+         except aiomysql.Error as err:
+             logger.error(f'ERROR FETCH {err}, {query}, {data}')
+@@ -57,48 +62,54 @@ async def check_user(userid):
+ 
+ 
+ async def get_word(_id):
+-    data = await try_fetch("SELECT word FROM crux5 WHERE id=%s", (_id,), ONE)
++    data = await try_fetch("SELECT word FROM crux7 WHERE id=%s", (_id,), ONE)
+     word = data[0]
+     return word
+ 
+ 
+ async def get_word_info(word):
+-    data = await try_fetch("SELECT shared, entered, votepro, votecontra FROM crux5 WHERE word=%s", (word,), ONE)
++    data = await try_fetch("SELECT shared, entered, votepro, votecontra FROM crux7 WHERE word=%s", (word,), ONE)
+     return data
+ 
+ 
+ async def get_all_word_info():
+-    data = await try_fetch("SELECT word, shared, entered, votepro, votecontra FROM crux5"
++    data = await try_fetch("SELECT word, shared, entered, votepro, votecontra FROM crux7"
+                            " WHERE shared>0 OR votepro>0 OR votecontra>0 OR entered>0", (), ALL)
+     return data
+ 
+ 
+ async def set_word_info(word, shared, entered, votepro, votecontra):
+-    await try_commit("UPDATE crux5 SET shared=%s, entered=%s, votepro=%s, votecontra=%s WHERE word=%s",
++    await try_commit("UPDATE crux7 SET shared=%s, entered=%s, votepro=%s, votecontra=%s WHERE word=%s",
+                      (shared, entered, votepro, votecontra, word))
+ 
+ 
+ async def set_word(userid, word, cruxid):
+-    await try_commit("UPDATE users SET cruxword=%s, cruxid=%s WHERE userid=%s", (word, cruxid, userid))
++    await try_commit("UPDATE users SET cruxword=%s, cruxid=%s, currlen=%s WHERE userid=%s",
++                     (word, cruxid, len(word), userid))
++
++
++async def get_currlen(userid):
++    data = await try_fetch("SELECT currlen FROM users WHERE userid=%s", (userid,), ONE)
++    return data[0]
+ 
+ 
+ async def check_word(word):
+-    data = await try_fetch("SELECT word, usages FROM dict5 WHERE word=%s", (word,), ONE)
++    data = await try_fetch("SELECT word, usages FROM dict7 WHERE word=%s", (word,), ONE)
+     return data
+ 
+ 
+ async def get_word_usages():
+-    data = await try_fetch("SELECT word, usages FROM dict5 WHERE usages>0", (), ALL)
++    data = await try_fetch("SELECT word, usages FROM dict7 WHERE usages>0", (), ALL)
+     return data
+ 
+ 
+ async def get_comms():
+-    data = await try_fetch("SELECT word, usages FROM comm5 WHERE usages>1", (), ALL)
++    data = await try_fetch("SELECT word, usages FROM comm7 WHERE usages>1", (), ALL)
+     return data
+ 
+ 
+ async def up_word_usages(word, usages):
+-    await try_commit("UPDATE dict5 set usages=%s WHERE word=%s", (usages, word))
++    await try_commit("UPDATE dict7 set usages=%s WHERE word=%s", (usages, word))
+ 
+ 
+ async def get_crux(userid):
+@@ -114,8 +125,8 @@ async def set_user(userid, chline, messid, state):
+ 
+ async def set_blank_user(userid):
+     await try_commit("UPDATE users SET cruxword=%s, cruxid=%s, charline=%s, "
+-                     "prevmess=%s, state=%s, inputs=%s, lastupd=%s WHERE userid=%s",
+-                     ('', 0, charline_default, 0, 1, '', datetime.now(), userid))
++                     "prevmess=%s, state=%s, inputs=%s WHERE userid=%s",
++                     ('', 0, charline_default, 0, 1, '', userid))
+ 
+ 
+ async def set_inputs(userid, inputs):
+@@ -161,23 +172,23 @@ async def get_games(userid):
+     return data
+ 
+ 
+-async def get_players(day_from):
++async def get_players():
+     data = await try_fetch("SELECT userid, username, games, wins, streaks, maxstreak, points "
+-                           "FROM users WHERE games>4 AND lastupd>%s", (day_from, ), ALL)
++                           "FROM users WHERE games>4", (), ALL)
+     return data
+ 
+ 
+ async def get_comm_word(word):
+-    data = await try_fetch("SELECT usages FROM comm5 WHERE word=%s", (word,), ONE)
++    data = await try_fetch("SELECT usages FROM comm7 WHERE word=%s", (word,), ONE)
+     return data
+ 
+ 
+ async def add_comm_word(word):
+-    await try_commit("INSERT INTO comm5 (word, usages) VALUES (%s,%s)", (word, 1))
++    await try_commit("INSERT INTO comm7 (word, usages) VALUES (%s,%s)", (word, 1))
+ 
+ 
+ async def upd_comm_word(word, usages):
+-    await try_commit("UPDATE comm5 SET usages=%s where word=%s", (usages, word))
++    await try_commit("UPDATE comm7 SET usages=%s where word=%s", (usages, word))
+ 
+ 
+ async def get_games_from(tstamp):
