@@ -1,14 +1,19 @@
 import sys
+import asyncio
 from time import time
+from aiohttp import web
 
-from aiogram import executor
+from aiogram import F, Router
+from aiogram.filters.command import Command
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
-from confy import WEBHOOK_URL_PATH, WEBHOOK_HOST, WEBHOOK_PORT
+from confy import WEBHOOK_URL, WEBHOOK_URL_PATH, WEBHOOK_HOST, WEBHOOK_PORT
 from event import start, show_help, incoming, go_vote, go_inputs
 from stats import show_stats, show_top, show_words, show_words_rate, show_comms, show_games
-from utils import dp, try_answer_callback_query, dope_send_message
+from utils import dp, bot, try_answer_callback_query, dope_send_message
 from utils import logger
 
+router = Router()
 
 def get_prefix(from_user):
     userid = from_user.id
@@ -17,7 +22,8 @@ def get_prefix(from_user):
     return f"{userid} {fname} @{uname}"
 
 
-@dp.message_handler(commands=["start"])
+@router.message(Command("start"))
+@dp.message(Command("start"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -28,7 +34,8 @@ async def docall(message):
     logger.info(f"{pref} select START :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["stats"])
+@router.message(Command("stats"))
+@dp.message(Command("stats"))
 async def docall(message):
     start_time = time()
     pref = get_prefix(message.from_user)
@@ -37,7 +44,8 @@ async def docall(message):
     logger.info(f"{pref} select STATS :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["help"])
+@router.message(Command("help"))
+@dp.message(Command("help"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -47,7 +55,8 @@ async def docall(message):
     logger.info(f"{pref} select HELP :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["top10"])
+@router.message(Command("top10"))
+@dp.message(Command("top10"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -57,7 +66,8 @@ async def docall(message):
     logger.info(f"{pref} select TOP10 :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["top7"])
+@router.message(Command("top7"))
+@dp.message(Command("top7"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -67,7 +77,8 @@ async def docall(message):
     logger.info(f"{pref} select TOP7 :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["words"])
+@router.message(Command("words"))
+@dp.message(Command("words"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -77,7 +88,8 @@ async def docall(message):
     logger.info(f"{pref} select WORDS :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["games"])
+@router.message(Command("games"))
+@dp.message(Command("games"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -87,7 +99,8 @@ async def docall(message):
     logger.info(f"{pref} select GAMES :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["comms"])
+@router.message(Command("comms"))
+@dp.message(Command("comms"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -97,7 +110,8 @@ async def docall(message):
     logger.info(f"{pref} select UTILS :: {time() - start_time}")
 
 
-@dp.message_handler(commands=["rates"])
+@router.message(Command("rates"))
+@dp.message(Command("rates"))
 async def docall(message):
     start_time = time()
     userid = message.from_user.id
@@ -107,7 +121,8 @@ async def docall(message):
     logger.info(f"{pref} select RATES :: {time() - start_time}")
 
 
-@dp.message_handler(content_types=['text'])
+@router.message(F.text)
+@dp.message(F.text)
 async def docall(message):
     start_time = time()
     pref = get_prefix(message.from_user)
@@ -116,7 +131,8 @@ async def docall(message):
     logger.info(f"{pref} input {message.text} :: {time() - start_time}")
 
 
-@dp.callback_query_handler()
+@router.callback_query()
+@dp.callback_query()
 async def docall(query):
     start_time = time()
     userid = query.message.chat.id
@@ -138,16 +154,30 @@ async def docall(query):
     logger.info(f"{pref} button {query.data} :: {time() - start_time}")
 
 
+async def start_longpolling():
+    await dp.start_polling(bot, skip_updates=False)
+
+
+async def on_startup(bot):
+    await bot.set_webhook(WEBHOOK_URL + WEBHOOK_URL_PATH)
+
+
+def start_webhook():
+    dp.include_router(router)
+    dp.startup.register(on_startup)
+
+    app = web.Application()
+    webhook_requests_handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    webhook_requests_handler.register(app, path=WEBHOOK_URL_PATH)
+    setup_application(app, dp, bot=bot)
+
+    web.run_app(app, host=WEBHOOK_HOST, port=WEBHOOK_PORT)
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1 and (sys.argv[1] == '--polling'):
         print('wordie <><> polling <><> mode started')
-        executor.start_polling(dp, skip_updates=False)
+        asyncio.run(start_longpolling())
     else:
         print('wordie aiobot V^V^ webhook V^V^ mode started')
-        executor.start_webhook(
-            dispatcher=dp,
-            webhook_path=WEBHOOK_URL_PATH,
-            skip_updates=False,
-            host=WEBHOOK_HOST,
-            port=WEBHOOK_PORT,
-        )
+        start_webhook()
